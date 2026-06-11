@@ -1,0 +1,6 @@
+{
+  "name": "Ramesh EcoCane",
+  "description": "Zero-waste sustainable D2C brand built on sugarcane innovation, offering organic food products and biodegradable alternatives.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
