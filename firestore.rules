@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions for common validations
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z5-9_\\-]+$');
+    }
+
+    // 1. Wholesale inquiries rules
+    match /wholesale_inquiries/{inquiryId} {
+      allow get: if true;
+      allow create: if request.resource.data.keys().hasAll(['name', 'email', 'phone', 'companyName', 'category', 'createdAt'])
+                    && request.resource.data.name is string && request.resource.data.name.size() <= 100
+                    && request.resource.data.email is string && request.resource.data.email.size() <= 100
+                    && request.resource.data.phone is string && request.resource.data.phone.size() <= 30
+                    && request.resource.data.companyName is string && request.resource.data.companyName.size() <= 100
+                    && request.resource.data.category in ['jaggery_bulk', 'eco_wholesale', 'both'];
+      allow list, update, delete: if false;
+    }
+
+    // 2. Custom designs rules
+    match /custom_designs/{designId} {
+      allow get: if true;
+      allow create: if request.resource.data.keys().hasAll(['type', 'createdAt'])
+                    && request.resource.data.type in ['food', 'eco'];
+      allow list, update, delete: if false;
+    }
+
+    // 3. Contact submissions rules
+    match /contact_submissions/{submissionId} {
+      allow create: if request.resource.data.keys().hasAll(['name', 'email', 'message', 'createdAt'])
+                    && request.resource.data.name is string && request.resource.data.name.size() <= 100
+                    && request.resource.data.email is string && request.resource.data.email.size() <= 100
+                    && request.resource.data.message is string && request.resource.data.message.size() <= 5000;
+      allow read, list, update, delete: if false;
+    }
+
+    // 4. Orders purchased rules
+    match /orders/{orderId} {
+      allow get: if true;
+      allow create: if request.resource.data.keys().hasAll(['customerName', 'customerPhone', 'customerAddress', 'totalAmount', 'createdAt'])
+                    && request.resource.data.customerName is string && request.resource.data.customerName.size() <= 100
+                    && request.resource.data.customerPhone is string && request.resource.data.customerPhone.size() <= 30
+                    && request.resource.data.customerAddress is string && request.resource.data.customerAddress.size() <= 500
+                    && request.resource.data.totalAmount is number;
+      allow list, update, delete: if false;
+    }
+
+    // 5. Loyalty club members rules
+    match /loyalty_members/{memberId} {
+      allow get: if true;
+      allow create: if request.resource.data.keys().hasAll(['userName', 'points', 'claimedCoupons', 'joinedAt'])
+                    && request.resource.data.userName is string && request.resource.data.userName.size() <= 100
+                    && request.resource.data.points is number
+                    && request.resource.data.claimedCoupons is list;
+      allow update: if request.resource.data.userName == resource.data.userName
+                    && request.resource.data.joinedAt == resource.data.joinedAt
+                    && request.resource.data.points is number
+                    && request.resource.data.claimedCoupons is list;
+      allow list, delete: if false;
+    }
+  }
+}

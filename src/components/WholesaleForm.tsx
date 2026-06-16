@@ -21,6 +21,8 @@ import {
   Calendar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { db, handleFirestoreError, OperationType } from '../firebase';
+import { setDoc, doc } from 'firebase/firestore';
 
 export default function WholesaleForm() {
   const [formSubmitted, setFormSubmitted] = useState(false);
@@ -172,10 +174,28 @@ export default function WholesaleForm() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const mockTicket = 'ECO-BULK-' + Math.floor(100000 + Math.random() * 900000);
     setTicketId(mockTicket);
+
+    const path = `wholesale_inquiries`;
+    try {
+      await setDoc(doc(db, path, mockTicket), {
+        id: mockTicket,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        companyName: formData.companyName || 'None Listed',
+        category: 'eco_wholesale',
+        expectedVolume: formData.expectedVolume + (formData.selectedPack !== 'None' ? ` (${formData.selectedPack})` : ''),
+        message: formData.message || `No message. Event Type: ${formData.eventType}. Date: ${formData.eventDate || 'N/A'}.`,
+        createdAt: new Date().toISOString()
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `${path}/${mockTicket}`);
+    }
+
     setFormSubmitted(true);
   };
 

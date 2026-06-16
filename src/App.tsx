@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { Product, CartItem, SubscriptionFrequency } from './types';
 import { products, mockReviews } from './data/products';
+import { db, handleFirestoreError, OperationType } from './firebase';
+import { setDoc, doc } from 'firebase/firestore';
 
 // Reusable Components
 import Header from './components/Header';
@@ -40,8 +42,15 @@ export default function App() {
   
   // Cart & Loyalty State
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [points, setPoints] = useState(50); // Start with 50 points as welcome
-  const [claimedCoupons, setClaimedCoupons] = useState<string[]>([]);
+  const [loyaltyName, setLoyaltyName] = useState(() => localStorage.getItem('cane_loyalty_name') || '');
+  const [points, setPoints] = useState(() => {
+    const savedPoints = localStorage.getItem('cane_loyalty_points');
+    return savedPoints ? parseInt(savedPoints, 10) : 50;
+  }); // Start with 50 points as welcome
+  const [claimedCoupons, setClaimedCoupons] = useState<string[]>(() => {
+    const savedCoupons = localStorage.getItem('cane_loyalty_coupons');
+    return savedCoupons ? JSON.parse(savedCoupons) : [];
+  });
   
   // Modal toggles
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -108,21 +117,77 @@ export default function App() {
     setCartItems([]);
   };
 
-  // Loyalty Points management
-  const handleAddPoints = (amount: number) => {
-    setPoints((p) => p + amount);
-  };
-
-  const handleClaimCoupon = (code: string, cost: number) => {
-    if (points >= cost) {
-      setPoints((p) => p - cost);
-      setClaimedCoupons((prev) => [...prev, code]);
+  // Helper to persist/sync loyalty stats
+  const syncLoyaltyMember = async (name: string, updatedPoints: number, coupons: string[]) => {
+    if (!name.trim()) return;
+    const cleanId = name.trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
+    const path = 'loyalty_members';
+    // Sync React state to LocalStorage for offline seamlessness
+    localStorage.setItem('cane_loyalty_name', name.trim());
+    localStorage.setItem('cane_loyalty_points', updatedPoints.toString());
+    localStorage.setItem('cane_loyalty_coupons', JSON.stringify(coupons));
+    
+    try {
+      await setDoc(doc(db, path, cleanId), {
+        id: cleanId,
+        userName: name.trim(),
+        points: updatedPoints,
+        claimedCoupons: coupons,
+        joinedAt: new Date().toISOString()
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `${path}/${cleanId}`);
     }
   };
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleRegisterLoyalty = async (name: string) => {
+    setLoyaltyName(name);
+    const newPoints = points + 100; // Give initial sign up points
+    setPoints(newPoints);
+    await syncLoyaltyMember(name, newPoints, claimedCoupons);
+  };
+
+  // Loyalty Points management
+  const handleAddPoints = async (amount: number) => {
+    const newPoints = points + amount;
+    setPoints(newPoints);
+    localStorage.setItem('cane_loyalty_points', newPoints.toString());
+    if (loyaltyName) {
+      await syncLoyaltyMember(loyaltyName, newPoints, claimedCoupons);
+    }
+  };
+
+  const handleClaimCoupon = async (code: string, cost: number) => {
+    if (points >= cost) {
+      const newPoints = points - cost;
+      const newCoupons = [...claimedCoupons, code];
+      setPoints(newPoints);
+      setClaimedCoupons(newCoupons);
+      localStorage.setItem('cane_loyalty_points', newPoints.toString());
+      localStorage.setItem('cane_loyalty_coupons', JSON.stringify(newCoupons));
+      if (loyaltyName) {
+        await syncLoyaltyMember(loyaltyName, newPoints, newCoupons);
+      }
+    }
+  };
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (contactData.name && contactData.email && contactData.message) {
+      const id = 'CONTACT-' + Math.floor(100000 + Math.random() * 900000);
+      const path = 'contact_submissions';
+      try {
+        await setDoc(doc(db, path, id), {
+          id,
+          name: contactData.name,
+          email: contactData.email,
+          message: contactData.message,
+          createdAt: new Date().toISOString()
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `${path}/${id}`);
+      }
+
       setContactSubmitted(true);
       setTimeout(() => {
         setContactSubmitted(false);
@@ -461,8 +526,24 @@ export default function App() {
 
               {!foodCustSubmitted ? (
                 <form 
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
+                    const id = 'FD-CUST-' + Math.floor(100000 + Math.random() * 900000);
+                    const path = 'custom_designs';
+                    try {
+                      await setDoc(doc(db, path, id), {
+                        id,
+                        type: 'food',
+                        baseProduct: foodBase,
+                        infusion: foodInfusion,
+                        weightVolume: foodWeight,
+                        labelText: foodLabel,
+                        notes: foodNotes,
+                        createdAt: new Date().toISOString()
+                      });
+                    } catch (err) {
+                      handleFirestoreError(err, OperationType.WRITE, `${path}/${id}`);
+                    }
                     setFoodCustSubmitted(true);
                   }}
                   className="grid grid-cols-1 md:grid-cols-2 gap-6"
@@ -710,8 +791,23 @@ export default function App() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                   {/* Left Controls Form Column */}
                   <form 
-                    onSubmit={(e) => {
+                    onSubmit={async (e) => {
                       e.preventDefault();
+                      const id = 'ECO-CUST-' + Math.floor(100000 + Math.random() * 900000);
+                      const path = 'custom_designs';
+                      try {
+                        await setDoc(doc(db, path, id), {
+                          id,
+                          type: 'eco',
+                          tablewareType: ecoType,
+                          embossingText: ecoEmboss,
+                          partitions: ecoCompartments,
+                          batchSize: ecoPacks,
+                          createdAt: new Date().toISOString()
+                        });
+                      } catch (err) {
+                        handleFirestoreError(err, OperationType.WRITE, `${path}/${id}`);
+                      }
                       setEcoCustSubmitted(true);
                     }}
                     className="lg:col-span-7 space-y-4"
@@ -1225,6 +1321,8 @@ export default function App() {
           onClose={() => setIsLoyaltyOpen(false)}
           claimedCoupons={claimedCoupons}
           claimCoupon={handleClaimCoupon}
+          initialUserName={loyaltyName}
+          onRegister={handleRegisterLoyalty}
         />
       )}
 

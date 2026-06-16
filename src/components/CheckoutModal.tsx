@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle, Truck, Package, Heart, RefreshCw, Compass, ShieldCheck } from 'lucide-react';
 import { CartItem } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { db, handleFirestoreError, OperationType } from '../firebase';
+import { setDoc, doc } from 'firebase/firestore';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -20,6 +22,7 @@ export default function CheckoutModal({
 }: CheckoutModalProps) {
   const [step, setStep] = useState<1 | 2>(1); // 1: Shipping and inputs, 2: Receipt and progress trace
   const [shippingData, setShippingData] = useState({
+    name: '',
     street: '',
     city: 'Bangalore',
     pincode: '',
@@ -42,11 +45,33 @@ export default function CheckoutModal({
 
   if (!isOpen) return null;
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     const id = 'CANE-ORD-' + Math.floor(100000 + Math.random() * 900000);
     setOrderId(id);
     
+    // Save to Firestore!
+    const path = `orders`;
+    try {
+      await setDoc(doc(db, path, id), {
+        id,
+        items: cartItems.map(item => ({
+          productId: item.product.id,
+          productName: item.product.name,
+          quantity: item.quantity,
+          isSubscription: !!item.isSubscription,
+          subscriptionFrequency: item.subscriptionFrequency || null
+        })),
+        customerName: shippingData.name || 'Loyal Guest',
+        customerPhone: shippingData.phone,
+        customerAddress: `${shippingData.street}, ${shippingData.city} - ${shippingData.pincode}`,
+        totalAmount: finalTotal,
+        createdAt: new Date().toISOString()
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `${path}/${id}`);
+    }
+
     // Give loyalty reward points for buying! (e.g. 50 bonus points for order!)
     addPoints(150);
     
@@ -119,6 +144,19 @@ export default function CheckoutModal({
                 <form onSubmit={handlePlaceOrder} className="md:col-span-7 space-y-4">
                   <h4 className="text-xs font-bold text-gray-400 tracking-wider uppercase">Shipment Location</h4>
                   
+                  <div>
+                    <label htmlFor="chk-name" className="block text-xs font-semibold text-gray-700 mb-1">Your Full Name *</label>
+                    <input
+                      type="text"
+                      required
+                      id="chk-name"
+                      value={shippingData.name}
+                      onChange={(e) => setShippingData({ ...shippingData, name: e.target.value })}
+                      placeholder="e.g. Rahul Sharma"
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
                   <div>
                     <label htmlFor="chk-street" className="block text-xs font-semibold text-gray-700 mb-1">Street Address *</label>
                     <input

@@ -8,6 +8,8 @@ interface LoyaltyClubProps {
   onClose: () => void;
   claimedCoupons: string[];
   claimCoupon: (code: string, cost: number) => void;
+  initialUserName?: string;
+  onRegister?: (name: string) => void;
 }
 
 export default function LoyaltyClub({
@@ -15,10 +17,12 @@ export default function LoyaltyClub({
   addPoints,
   onClose,
   claimedCoupons,
-  claimCoupon
+  claimCoupon,
+  initialUserName = '',
+  onRegister
 }: LoyaltyClubProps) {
-  const [userName, setUserName] = useState('');
-  const [isLobeJoined, setIsLobeJoined] = useState(false);
+  const [userName, setUserName] = useState(initialUserName);
+  const [isLobeJoined, setIsLobeJoined] = useState(!!initialUserName);
 
   // Rewards list
   const rewardVouchers = [
@@ -46,8 +50,12 @@ export default function LoyaltyClub({
     e.preventDefault();
     if (userName.trim()) {
       setIsLobeJoined(true);
-      // Give initial 100 CranePoints!
-      addPoints(100);
+      if (onRegister) {
+        onRegister(userName.trim());
+      } else {
+        // Fallback
+        addPoints(100);
+      }
     }
   };
 

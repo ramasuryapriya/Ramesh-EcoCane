@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "WholesaleInquiry": {
+      "title": "Wholesale Inquiry",
+      "description": "Records B2B bulk ordering inquiries from prospective clients.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "companyName": { "type": "string" },
+        "category": { "type": "string", "enum": ["jaggery_bulk", "eco_wholesale", "both"] },
+        "expectedVolume": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "phone", "companyName", "category", "createdAt"]
+    },
+    "CustomDesign": {
+      "title": "Custom Design",
+      "description": "Spec details of a user's customized organic wellness blend or custom eco-molded plate/bowl specifications.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["food", "eco"] },
+        "baseProduct": { "type": "string" },
+        "infusion": { "type": "string" },
+        "weightVolume": { "type": "string" },
+        "labelText": { "type": "string" },
+        "notes": { "type": "string" },
+        "tablewareType": { "type": "string" },
+        "embossingText": { "type": "string" },
+        "partitions": { "type": "number" },
+        "batchSize": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "createdAt"]
+    },
+    "ContactSubmission": {
+      "title": "Contact Submission",
+      "description": "Contains questions and feedback messages posted via the contact form.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "message", "createdAt"]
+    },
+    "Order": {
+      "title": "Order Purchase",
+      "description": "Details of checked out cart orders and payment details.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "items": { "type": "array" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "customerAddress": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "claimedCoupon": { "type": "string" },
+        "dispatchedAt": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerName", "customerPhone", "customerAddress", "totalAmount", "createdAt"]
+    },
+    "LoyaltyMember": {
+      "title": "Loyalty Member",
+      "description": "Tracks verified members registered for CanePoints and their claimed vouchers.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userName": { "type": "string" },
+        "points": { "type": "number" },
+        "claimedCoupons": { "type": "array" },
+        "joinedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userName", "points", "claimedCoupons", "joinedAt"]
+    }
+  },
+  "firestore": {
+    "/wholesale_inquiries/{inquiryId}": {
+      "schema": "WholesaleInquiry",
+      "description": "Stores individual B2B contact and contract applications."
+    },
+    "/custom_designs/{designId}": {
+      "schema": "CustomDesign",
+      "description": "Stores consumer specifications for customized items."
+    },
+    "/contact_submissions/{submissionId}": {
+      "schema": "ContactSubmission",
+      "description": "Stores custom messages received on the storefront."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Stores purchases and subscription activations."
+    },
+    "/loyalty_members/{memberId}": {
+      "schema": "LoyaltyMember",
+      "description": "Stores customer profiles tracking rewards and points."
+    }
+  }
+}
